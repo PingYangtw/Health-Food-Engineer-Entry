@@ -144,7 +144,7 @@
         const timerRef = useRef(null);
         const [corrections, setCorrections] = useState([]);
         const [bankUrl, setBankUrl] = useState("gh:PingYangtw/Health-Food-Engineer-Entry@main:Question_All%20(1).csv");
-        const [corrUrl, setCorrUrl] = useState("gh:PingYangtw/Health-Food-Engineer-Entry@main:exam_corrections_all_years.csv");
+        const [corrUrl, setCorrUrl] = useState("https://github.com/PingYangtw/Health-Food-Engineer-Entry/blob/2e123d2ca94719de803cd8766b22256a37630c58/exam_corrections_all_years.csv");
 
         const runSelfTests = () => {
           try {
@@ -338,8 +338,7 @@
                     年度: String(pick(r, ["年度", "year"]) ?? ""),
                     場次: String(pick(r, ["場次", "session"]) ?? ""),
                     科目: String(pick(r, ["科目", "subject"]) ?? ""),
-                    題號: Number(String(pick(r, ["題號", "question_no", "no"]) ?? "")
-        .replace(/[^0-9.-]/g, "")),
+                    題號: Number(String(pick(r, ["題號", "question_no", "no"]) ?? "").replace(/[^0-9.-]/g, "")),
                     正確答案: String(pick(r, ["正確答案", "correct_answers"]) ?? ""),
                   };
                 });
@@ -436,9 +435,8 @@
           }
         };
 
-        const 題號: Number(String(pick(r, ["題號", "question_no", "no"]) ?? "")
-        .replace(/[^0-9.-]/g, "")),
- = (url) => {
+        // 由網址載入更正/給分表（支援 GitHub blob 連結與 gh: 別名）
+        const onImportCorrectionsUrl = (url) => {
           const u = toRawUrl(url.trim());
           if (!u) { alert("請輸入更正/給分表網址"); return; }
           PapaLib.parse(u, {
@@ -453,7 +451,7 @@
                     年度: String(pick(r, ["年度", "year"]) ?? ""),
                     場次: String(pick(r, ["場次", "session"]) ?? ""),
                     科目: String(pick(r, ["科目", "subject"]) ?? ""),
-                    題號: Number(pick(r, ["題號", "question_no", "no"]) ?? 0),
+                    題號: Number(String(pick(r, ["題號", "question_no", "no"]) ?? "").replace(/[^0-9.-]/g, "")),
                     正確答案: String(pick(r, ["正確答案", "correct_answers"]) ?? ""),
                   };
                 });
@@ -464,6 +462,16 @@
             },
             error: () => alert("下載更正 CSV 失敗，請確認網址可公開存取"),
           });
+        };
+
+        // 一鍵：載入 GitHub 題庫 + 更正表，並自動套用更正
+        const loadGithubDefaults = () => {
+          const defaultBank = bankUrl || "gh:PingYangtw/Health-Food-Engineer-Entry@main:Question_All%20(1).csv";
+          const defaultCorr = corrUrl || "https://github.com/PingYangtw/Health-Food-Engineer-Entry/blob/2e123d2ca94719de803cd8766b22256a37630c58/exam_corrections_all_years.csv";
+          onImportUrl(defaultBank);
+          onImportCorrectionsUrl(defaultCorr);
+          // 等兩個 CSV 下載完成後自動套用更正
+          setTimeout(() => { try { applyCorrections(); } catch (e) {} }, 800);
         };
 
         const handleImportChange = (e) => {
@@ -577,10 +585,8 @@
                   <button className="rounded-xl px-3 py-2 border" onClick={loadSamples}>載入範例題庫</button>
                   <button className="rounded-xl px-3 py-2 border" onClick={exportAll}>匯出目前題庫 CSV</button>
                   <button className="rounded-xl px-3 py-2 border" onClick={exportWrong}>匯出錯題本 CSV</button>
-                  <button className="rounded-xl px-3 py-2 border" onClick={runSelfTests}>執行自我測試</button>
+                  <button className="rounded-xl px-3 py-2 border" onClick={loadGithubDefaults\}>一鍵載入 GitHub 題庫+更正表</button>
                   <button className="rounded-xl px-3 py-2 border" onClick={clearBank}>清空題庫</button>
-                  <button className="rounded-xl px-3 py-2 border" onClick={loadGithubDefaults}>一鍵載入 GitHub 題庫+更正表</button>
-
                 </div>
                 <div className="text-sm text-gray-600">目前題庫：{filtered.length} 題（符合篩選）／ 全部 {bank.length} 題；更正表：{corrections.length} 筆</div>
                 <div className="text-xs text-gray-500">唯一鍵：年-日期(或場次)-科目-題號（避免不同場次同題號被合併）</div>
