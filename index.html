@@ -74,7 +74,10 @@
         const correct_answers = (pick(r, ["correct_answers", "正確答案", "answer"]) ?? "").toString().replace(/\s/g, "");
         const notes = (pick(r, ["notes", "備註"]) ?? "").toString();
         const date = (pick(r, ["date", "日期"]) ?? "").toString();
-        const id = `${year || ""}-${subject || ""}-${question_no || ""}`;
+        const session = (pick(r, ["session", "場次"]) ?? "").toString().trim();
+        // 讓不同場次/日期的同年同科目同題號不會被當成重複題而合併
+        const salt = (date || session || (question ? String(question).slice(0, 20).replace(/\s+/g, "") : ""));
+        const id = `$${year || ""}-$${salt}-$${subject || ""}-$${question_no || ""}`;
         const opts = ["A", "B", "C", "D"].map((k) => ({
           key: k,
           text: (
@@ -272,13 +275,14 @@
                   r.option_D = r.option_D ?? r["D"] ?? r["選項D"];
                   r.correct_answers = r.correct_answers ?? r["正確答案"] ?? r["answer"];
                   r.notes = r.notes ?? r["備註"];
-                  r.date = r.date ?? r["日期"];
+                  r.date = r.date ?? r["日期"]; r.session = r.session ?? r["場次"] ?? r["session"]; r.session = r.session ?? r["場次"] ?? r["session"];
                   const qa = rowToQA(r);
                   if (!qa.year || !qa.subject || !qa.question_no) { skipped += 1; return null; }
                   ok += 1; return qa;
                 }).filter(Boolean);
+                const dup = countDup(bank, rows);
                 setBank((prev) => mergeBank(prev, rows));
-                alert(`已匯入 ${ok} 題${skipped ? `，略過 ${skipped} 題（缺少 年度/科目/題號）` : ""}`);
+                alert(`已匯入 $${ok} 題$${skipped ? `，略過 $${skipped} 題（缺少 年度/科目/題號）` : ""}；其中 $${dup} 題與既有題目（相同 年度/日期(或場次)/科目/題號）重複，已自動合併`);
               },
             });
             return;
@@ -308,8 +312,9 @@
                   if (!qa.year || !qa.subject || !qa.question_no) { skipped += 1; return null; }
                   ok += 1; return qa;
                 }).filter(Boolean);
+                const dup = countDup(bank, rows);
                 setBank((prev) => mergeBank(prev, rows));
-                alert(`已匯入 ${ok} 題${skipped ? `，略過 ${skipped} 題（缺少 年度/科目/題號）` : ""}`);
+                alert(`已匯入 $${ok} 題$${skipped ? `，略過 $${skipped} 題（缺少 年度/科目/題號）` : ""}；其中 $${dup} 題與既有題目（相同 年度/日期(或場次)/科目/題號）重複，已自動合併`);
               } catch { alert("JSON 解析失敗"); }
             };
             reader.readAsText(file, "utf-8");
@@ -369,6 +374,12 @@
           const map = new Map(prev.map((q) => [q.id, q]));
           for (const r of rows) map.set(r.id, r);
           return Array.from(map.values());
+        };
+
+        const countDup = (prev, rows) => {
+          const set = new Set(prev.map((q) => q.id));
+          let dup = 0; for (const r of rows) if (set.has(r.id)) dup += 1;
+          return dup;
         };
 
         const exportWrong = () => {
